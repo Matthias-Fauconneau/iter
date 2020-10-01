@@ -1,3 +1,5 @@
+#![feature(min_const_generics, maybe_uninit_uninit_array, maybe_uninit_extra, once_cell)]
+
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
 
@@ -35,3 +37,20 @@ pub trait NthOrLast : Iterator {
 	}
 }
 impl<I:Iterator> NthOrLast for I {}
+
+pub mod array {
+	pub trait FromIterator<T> { fn from_iter<I:std::iter::IntoIterator<Item=T>>(into_iter: I) -> Self; }
+	impl<T, const N : usize> FromIterator<T> for [T; N] {
+			#[track_caller] fn from_iter<I>(into_iter: I) -> Self where I:std::iter::IntoIterator<Item=T> {
+					let mut array : [std::mem::MaybeUninit<T>; N] = std::mem::MaybeUninit::uninit_array();
+					let mut iter = into_iter.into_iter();
+					for e in array.iter_mut() { e.write(iter.next().unwrap()); } // panic on short iter
+					let array_as_initialized = unsafe { std::ptr::read(&array as *const _ as *const [T; N]) };
+					std::mem::forget(array);
+					array_as_initialized
+			}
+	}
+	pub trait Iterator : std::iter::Iterator { #[track_caller] fn collect<B: FromIterator<Self::Item>>(self) -> B where Self:Sized { FromIterator::from_iter(self) } }
+	impl<I:std::iter::Iterator> Iterator for I {}
+	pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> [T; N] { Iterator::collect((0..N).map(f)) }
+}
