@@ -38,6 +38,8 @@ pub trait NthOrLast : Iterator {
 }
 impl<I:Iterator> NthOrLast for I {}
 
+pub fn from_iter<T>(iter: impl IntoIterator<Item=T>) -> Box<[T]> { use std::iter::FromIterator; Box::<[T]>::from_iter(iter) }
+
 pub mod array {
 	pub trait FromIterator<T> { fn from_iter<I:std::iter::IntoIterator<Item=T>>(into_iter: I) -> Self; }
 	impl<T, const N : usize> FromIterator<T> for [T; N] {
