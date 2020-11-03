@@ -54,5 +54,7 @@ pub mod array {
 	}
 	pub trait Iterator : std::iter::Iterator { #[track_caller] fn collect<B: FromIterator<Self::Item>>(self) -> B where Self:Sized { FromIterator::from_iter(self) } }
 	impl<I:std::iter::Iterator> Iterator for I {}
-	pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> [T; N] { Iterator::collect((0..N).map(f)) }
+	pub fn from_iter<T, const N:usize>(iter: impl IntoIterator<Item=T>) -> [T; N] { <[T; N]>::from_iter(iter) }
+	pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> [T; N] { from_iter((0..N).map(f)) }
+	pub fn map<T, U, const N: usize>(v: &[T; N], f: impl Fn(&T)->U) -> [U; N] { from_iter(v.iter().map(f)) }
 }
