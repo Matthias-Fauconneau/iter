@@ -1,4 +1,6 @@
-#![feature(associated_type_bounds, min_const_generics, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra)]
+//#![allow(incomplete_features)]
+#![feature(associated_type_bounds, min_const_generics, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra)] //generic_associated_types
+macro_rules! assert_eq { ($left:expr, $right:expr) => (std::assert!($left == $right, "{} = {:?}, {} = {:?}", stringify!($left), $left, stringify!($right), $right)) }
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
@@ -45,7 +47,7 @@ pub trait FromExactSizeIterator<T> { fn from_iter<I:IntoIterator<Item=T>+IntoExa
 impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
 	#[track_caller] fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self {
 		let mut iter = into_iter.into_iter();
-		assert!(iter.len() == N);
+		assert_eq!(iter.len(), N);
 		let mut array : [std::mem::MaybeUninit<T>; N] = std::mem::MaybeUninit::uninit_array();
 		for e in array.iter_mut() { e.write(iter.next().unwrap()); }
 		let array_as_initialized = unsafe { std::ptr::read(&array as *const _ as *const [T; N]) }; //61956
@@ -55,7 +57,7 @@ impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
 }
 pub trait ExactSizeIterator : std::iter::ExactSizeIterator { #[track_caller] fn collect<B: FromExactSizeIterator<Self::Item>>(self) -> B where Self:Sized { FromExactSizeIterator::from_iter(self) } }
 impl<I:std::iter::ExactSizeIterator> ExactSizeIterator for I {}
-pub fn collect<I:std::iter::ExactSizeIterator,B:FromExactSizeIterator<I::Item>>(iter: I) -> B { ExactSizeIterator::collect(iter) }
+#[track_caller] pub fn collect<I:std::iter::ExactSizeIterator,B:FromExactSizeIterator<I::Item>>(iter: I) -> B { ExactSizeIterator::collect(iter) }
 
 pub trait IntoValueIterator {
 	type IntoIter: Iterator;
@@ -167,3 +169,9 @@ impl<const N: usize> Vector<N> for ConstRange<N> { type Item = <Self as IntoIter
 #[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::VectorCollect::collect($crate::map!($($args),*; |$($params),*| $expr)) }; }
 
 pub mod r#box { pub fn collect<T>(iter: impl IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() } }
+
+use std::convert::TryInto;
+//pub trait Prefix { type Output<const S: usize>; fn prefix<const S: usize>(self) -> Self::Output<S>; }
+//impl<T:Copy, const N: usize> Prefix for &[T; N] { type Output<const S: usize> = [T; S]; fn prefix<const S: usize>(self) -> Self::Output<S> { (&self[..S]).try_into().unwrap() } } // Error finalizing incremental compilation
+pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
+impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
