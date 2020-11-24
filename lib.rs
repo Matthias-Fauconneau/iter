@@ -2,6 +2,8 @@
 #![recursion_limit="5"]
 //macro_rules! assert_eq { ($left:expr, $right:expr) => (std::assert!($left == $right, "{} = {:?}, {} = {:?}", stringify!($left), $left, stringify!($right), $right)) }
 
+//pub fn map<T, U>(iter: impl IntoIterator<Item=T>, f: impl Fn(T)->U) -> impl Iterator<Item=U> { iter.into_iter().map(f) }
+
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
 
@@ -88,6 +90,11 @@ impl<T, const N: usize> IntoIterator for &'t mut [T; N] {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
+impl<I, F> IntoIterator for std::iter::Filter<I, F> where Self:std::iter::IntoIterator {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
 
 impl<T> IntoIterator for &'t Box<[T]> {
 	type IntoIter = std::slice::Iter<'t, T>;
@@ -155,5 +162,4 @@ impl<A,B> ExactSizeIterator for Chain<A,B> where Self:std::iter::ExactSizeIterat
 pub mod into;
 pub mod vec;
 
-//pub fn box_from_iter<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { std::iter::FromIterator::from_iter(iter) }
 pub fn box_collect<T>(iter: impl Iterator<Item=T>) -> Box<[T]> { iter.collect() }

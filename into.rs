@@ -57,11 +57,19 @@ impl<I:IntoIterator, F: Fn<(I::Item,)>> IntoIterator for Map<I, F> {
 pub trait Find : IntoIterator+Sized { fn find<P:FnMut(&Self::Item)->bool>(self, predicate: P) -> Option<Self::Item> { self.into_iter().find(predicate) } }
 impl<I:IntoIterator> Find for I {}
 
+pub trait Filter : IntoIterator+Sized { fn filter<F:FnMut(&Self::Item)->bool>(self, f: F) -> std::iter::Filter<Self::IntoIter, F> { self.into_iter().filter(f) } }
+impl<I:IntoIterator> Filter for I {}
+
 pub trait FilterMap : IntoIterator+Sized { fn filter_map<U, F:FnMut(Self::Item)->Option<U>>(self, f: F) -> std::iter::FilterMap<Self::IntoIter, F> { self.into_iter().filter_map(f) } }
 impl<I:IntoIterator> FilterMap for I {}
 
 pub trait Sum<T> { fn sum(self) -> T; }
 impl<I:IntoIterator, T:std::iter::Sum<I::Item>> Sum<T> for I { fn sum(self) -> T { Iterator::sum(self.into_iter()) } }
 
-pub trait Product<T> { fn product(self) -> T; }
-impl<I:IntoIterator, T:std::iter::Product<I::Item>> Product<T> for I { fn product(self) -> T { Iterator::product(self.into_iter()) } }
+pub trait Format : IntoIterator+Sized {
+	fn format(self, sep: &str) -> itertools::Format<'_, Self::IntoIter> { itertools::Itertools::format(self.into_iter(), sep) }
+	fn format_with<F: FnMut(Self::Item, &mut dyn FnMut(&dyn std::fmt::Display) -> std::fmt::Result) -> std::fmt::Result>(self, sep: &str, format: F) -> itertools::FormatWith<'_, Self::IntoIter, F> {
+		itertools::Itertools::format_with(self.into_iter(), sep, format)
+	}
+}
+impl<I:IntoIterator> Format for I {}
