@@ -1,8 +1,5 @@
 #![feature(associated_type_bounds, min_const_generics, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra)]
 #![recursion_limit="5"]
-//macro_rules! assert_eq { ($left:expr, $right:expr) => (std::assert!($left == $right, "{} = {:?}, {} = {:?}", stringify!($left), $left, stringify!($right), $right)) }
-
-//pub fn map<T, U>(iter: impl IntoIterator<Item=T>, f: impl Fn(T)->U) -> impl Iterator<Item=U> { iter.into_iter().map(f) }
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
