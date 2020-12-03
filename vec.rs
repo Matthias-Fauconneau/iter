@@ -34,5 +34,7 @@ impl<A: IntoIterator<Item:std::ops::Mul<B::Item>,IntoIter:'t>, B:IntoIterator<It
 }
 
 use std::convert::TryInto;
+pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
+impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { (&self[..S]).try_into().unwrap() } }
 pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
 impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
