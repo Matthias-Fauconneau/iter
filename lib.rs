@@ -1,5 +1,5 @@
 #![feature(associated_type_bounds, min_const_generics, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra)]
-#![recursion_limit="5"]
+#![recursion_limit="6"]
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
@@ -151,6 +151,9 @@ impl<I: ExactSizeIterator> IntoIterator for I {
 #[track_caller] pub fn collect_sized<I:ExactSizeIterator,T:FromExactSizeIterator<I::Item>>(iter: I) -> T { ExactSizeIterator::collect(iter) }
 
 //impl<I:std::iter::ExactSizeIterator> ExactSizeIterator for I {} // !impl IntoIterator for I + impl IntoIterator for []: may impl std::ExactSizeIterator for []
+impl<Idx> ExactSizeIterator for std::ops::Range<Idx> where Self:std::iter::ExactSizeIterator {}
+impl<T, const N: usize> ExactSizeIterator for std::array::IntoIter<T, N> where Self:std::iter::ExactSizeIterator {}
+impl<'t, T> ExactSizeIterator for std::slice::Iter<'t, T> where Self:std::iter::ExactSizeIterator {}
 impl<I> ExactSizeIterator for std::iter::Copied<I> where Self:std::iter::ExactSizeIterator {}
 impl<A,B> ExactSizeIterator for std::iter::Zip<A,B> where Self:std::iter::ExactSizeIterator {}
 impl<I,F> ExactSizeIterator for std::iter::Map<I,F> where Self:std::iter::ExactSizeIterator {}

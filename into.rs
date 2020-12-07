@@ -46,13 +46,12 @@ pub struct Map<I,F>{iter: I, f: F}
 pub trait IntoMap : IntoIterator+Sized { fn map<F:Fn<(Self::Item,)>>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
 impl<I:IntoIterator> IntoMap for I {}
 pub fn map<V:IntoIterator,F:Fn<(V::Item,)>>(v: V, f: F) -> Map<V, F> { IntoMap::map(v, f) }
-
 impl<I:IntoIterator, F: Fn<(I::Item,)>> IntoIterator for Map<I, F> {
 	type IntoIter = std::iter::Map::<I::IntoIter, F>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::map(self.iter.into_iter(), self.f) }
 }
-#[macro_export] macro_rules! map { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::into::IntoMap::map($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
+#[macro_export] macro_rules! map { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::into::map($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
 
 pub trait Find : IntoIterator+Sized { fn find<P:FnMut(&Self::Item)->bool>(self, predicate: P) -> Option<Self::Item> { self.into_iter().find(predicate) } }
 impl<I:IntoIterator> Find for I {}
