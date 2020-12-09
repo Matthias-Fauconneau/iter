@@ -1,5 +1,12 @@
-#![feature(associated_type_bounds, min_const_generics, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra)]
+#![allow(incomplete_features)]
+#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]
 #![recursion_limit="6"]
+
+use std::convert::TryInto;
+pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
+impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { (&self[..S]).try_into().unwrap() } }
+pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
+impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
@@ -126,20 +133,30 @@ impl<I, F> std::iter::IntoIterator for into::Map<I, F> where Self:IntoIterator {
 pub trait IntoExactSizeIterator : IntoIterator<IntoIter:std::iter::ExactSizeIterator> {}
 impl<I:IntoIterator<IntoIter:std::iter::ExactSizeIterator>> IntoExactSizeIterator for I {}
 
+unsafe fn array_new<T, const N: usize>(init: impl FnOnce(&mut [std::mem::MaybeUninit<T>; N])) -> [T; N] {
+	let mut array : [std::mem::MaybeUninit<T>; N] = std::mem::MaybeUninit::uninit_array();
+	init(&mut array);
+	let array_as_initialized = std::ptr::read(&array as *const _ as *const [T; N]); //61956
+	std::mem::forget(array);
+	array_as_initialized
+}
+
 pub trait FromExactSizeIterator<T> { fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self; }
 impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
 	#[track_caller] fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self {
 		let mut iter = into_iter.into_iter();
 		assert_eq!(iter.len(), N);
-		let mut array : [std::mem::MaybeUninit<T>; N] = std::mem::MaybeUninit::uninit_array();
-		for e in array.iter_mut() { e.write(iter.next().unwrap()); }
-		let array_as_initialized = unsafe { std::ptr::read(&array as *const _ as *const [T; N]) }; //61956
-		std::mem::forget(array);
-		array_as_initialized
+		unsafe { array_new(|array| for e in array.iter_mut() { e.write(iter.next().unwrap()); }) }
 	}
 }
 #[track_caller] pub fn array_from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usize>(iter: I) -> [T; N] where [T; N]: FromExactSizeIterator<<I as IntoIterator>::Item> {
 	FromExactSizeIterator::from_iter(iter)
+}
+
+pub trait Concat { type Output; fn concat(self) -> Self::Output; }
+impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
+	type Output = [T; M*N];
+	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
 }
 
 pub trait ExactSizeIterator : std::iter::ExactSizeIterator { #[track_caller] fn collect<T: FromExactSizeIterator<Self::Item>>(self) -> T where Self:Sized { FromExactSizeIterator::from_iter(self) } }

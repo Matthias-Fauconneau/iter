@@ -22,6 +22,12 @@ impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::
 impl<const N: usize> Vector<N> for ConstRange<N> {}
 #[track_caller] pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> [T; N] { eval(ConstRange::new(), f) }
 
+pub trait Scale { type Output; fn scale(self, s: f64) -> Self::Output; }
+impl<const N: usize> Scale for &'t [f64; N] {
+	type Output = [f64; N];
+	fn scale(self, s: f64) -> Self::Output { eval(self, |v| s*v) }
+}
+
 pub trait Sub<B=Self> { type Output; fn sub(self, b: B) -> Self::Output; }
 impl<T: 't, const N: usize> Sub for &'t [T; N] where &'t T:std::ops::Sub {
 	type Output = [<&'t T as std::ops::Sub>::Output; N];
@@ -40,9 +46,3 @@ where <A::Item as std::ops::Mul<B::Item>>::Output: std::iter::Sum, Self:Vector<N
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
 	fn dot(self, b: B) -> Self::Output { super::into::Sum::sum(super::map!(self, b; |a,b| a*b)) }
 }
-
-use std::convert::TryInto;
-pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
-impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { (&self[..S]).try_into().unwrap() } }
-pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
-impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
