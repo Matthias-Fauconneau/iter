@@ -4,6 +4,16 @@ pub trait Collect: IntoIterator+Sized { fn collect<B>(self) -> B where B: std::i
 // impl Collect for IntoIterator !B
 impl<I, F> Collect for Map<I, F> where Self:IntoIterator {}
 
+pub struct Copied<I>(I);
+impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
+	type IntoIter = std::iter::Copied::<I::IntoIter>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { Iterator::copied(self.0.into_iter()) }
+}
+
+pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
+impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
+
 pub trait Enumerate : IntoIterator+Sized { fn enumerate(self) -> std::iter::Enumerate<Self::IntoIter> { self.into_iter().enumerate() } }
 impl<I:IntoIterator> Enumerate for I {}
 
@@ -42,7 +52,7 @@ impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIt
 	( @closure $p:pat => ( $($tup:tt)* ) , $_iter:expr $( , $tail:expr )* ) => { $crate::zip!(@closure ($p, b) => ( $($tup)*, b ) $( , $tail )*) };
 }
 
-pub struct Map<I,F>{iter: I, f: F}
+#[derive(Clone, Copy)] pub struct Map<I,F>{iter: I, f: F}
 pub trait IntoMap : IntoIterator+Sized { fn map<F:Fn<(Self::Item,)>>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
 impl<I:IntoIterator> IntoMap for I {}
 pub fn map<V:IntoIterator,F:Fn<(V::Item,)>>(v: V, f: F) -> Map<V, F> { IntoMap::map(v, f) }

@@ -84,9 +84,19 @@ impl<T> IntoIterator for &'t [T] {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
+/*pub struct Iter<'t, T, const N: usize>{array: &'t [T; N], index: usize}
+impl<'t, T, const N: usize> Iter<'t, T, N> { fn new(array: &'t [T; N]) -> Self { Self{array, index: 0} } }
+impl<'t, T, const N: usize> Iterator for Iter<'t, T, N> {
+	type Item = &'t T;
+	fn next(&mut self) -> Option<Self::Item> { (self.index < N).then(||{ let next = &self.array[self.index]; self.index += 1; next }) }
+	fn size_hint(&self) -> (usize, Option<usize>) { (N-self.index, Some(N-self.index)) }
+}
+impl<T, const N: usize> std::iter::ExactSizeIterator for Iter<'_, T, N> { }*/
+//pub struct IntoIter<'t, T, const N: usize>(&'t [T; N])
 impl<T, const N: usize> IntoIterator for &'t [T; N] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
+	//fn into_iter(self) -> Self::IntoIter { IntoIter(self) }
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
 impl<T, const N: usize> IntoIterator for &'t mut [T; N] {
@@ -169,6 +179,7 @@ impl<I: ExactSizeIterator> IntoIterator for I {
 
 //impl<I:std::iter::ExactSizeIterator> ExactSizeIterator for I {} // !impl IntoIterator for I + impl IntoIterator for []: may impl std::ExactSizeIterator for []
 impl<Idx> ExactSizeIterator for std::ops::Range<Idx> where Self:std::iter::ExactSizeIterator {}
+//impl<'t, T, const N: usize> ExactSizeIterator for Iter<'t, T, N> where Self:std::iter::ExactSizeIterator {}
 impl<T, const N: usize> ExactSizeIterator for std::array::IntoIter<T, N> where Self:std::iter::ExactSizeIterator {}
 impl<'t, T> ExactSizeIterator for std::slice::Iter<'t, T> where Self:std::iter::ExactSizeIterator {}
 impl<I> ExactSizeIterator for std::iter::Copied<I> where Self:std::iter::ExactSizeIterator {}
