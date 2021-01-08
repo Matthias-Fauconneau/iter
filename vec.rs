@@ -1,8 +1,8 @@
-use super::{into, IntoIterator, ExactSizeIterator};
+use super::{into, IntoIterator};
 
 pub trait Vector<const N: usize> : IntoIterator<IntoIter:ExactSizeIterator>+Sized { //super::IntoExactSizeIterator+Sized { //IntoIterator<IntoIter:ExactSizeIterator> {
 	//type Item = <Self as IntoIterator>::Item;
-	fn collect(self) -> [<Self as IntoIterator>::Item; N] { super::FromExactSizeIterator::from_iter(self.into_iter()) }
+	fn collect(self) -> [<Self as IntoIterator>::Item; N] { super::FromExactSizeIterator::from_iter(self) }
 }
 //impl<V:Vector<N>, const N: usize> Vector<N> for &'t V where &'t V:IntoIterator {}
 impl<T, const N: usize> Vector<N> for &[T; N] {}

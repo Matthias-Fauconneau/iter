@@ -73,7 +73,12 @@ pub trait IntoIterator { // +impl &Box<[T]>, [T; N]
 	type IntoIter: Iterator<Item = Self::Item>;
 	fn into_iter(self) -> Self::IntoIter;
 }
-// impl IntoIterator for std::IntoIterator
+// impl IntoIterator for std::iter::IntoIterator
+/*impl<I:std::iter::IntoIterator> IntoIterator for I { // Conflicts with impl IntoIterator for foreign !std::iter::IntoIterator which may implement std::iter::IntoIterator later ([])
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}*/
 impl<K, V> IntoIterator for std::collections::BTreeMap<K,V> {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -168,24 +173,6 @@ impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
 	type Output = [T; M*N];
 	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
 }
-
-pub trait ExactSizeIterator : std::iter::ExactSizeIterator { #[track_caller] fn collect<T: FromExactSizeIterator<Self::Item>>(self) -> T where Self:Sized { FromExactSizeIterator::from_iter(self) } }
-impl<I: ExactSizeIterator> IntoIterator for I {
-    type IntoIter = I;
-    type Item = <Self::IntoIter as Iterator>::Item;
-    fn into_iter(self) -> I { self }
-}
-#[track_caller] pub fn collect_sized<I:ExactSizeIterator,T:FromExactSizeIterator<I::Item>>(iter: I) -> T { ExactSizeIterator::collect(iter) }
-
-//impl<I:std::iter::ExactSizeIterator> ExactSizeIterator for I {} // !impl IntoIterator for I + impl IntoIterator for []: may impl std::ExactSizeIterator for []
-impl<Idx> ExactSizeIterator for std::ops::Range<Idx> where Self:std::iter::ExactSizeIterator {}
-//impl<'t, T, const N: usize> ExactSizeIterator for Iter<'t, T, N> where Self:std::iter::ExactSizeIterator {}
-impl<T, const N: usize> ExactSizeIterator for std::array::IntoIter<T, N> where Self:std::iter::ExactSizeIterator {}
-impl<'t, T> ExactSizeIterator for std::slice::Iter<'t, T> where Self:std::iter::ExactSizeIterator {}
-impl<I> ExactSizeIterator for std::iter::Copied<I> where Self:std::iter::ExactSizeIterator {}
-impl<A,B> ExactSizeIterator for std::iter::Zip<A,B> where Self:std::iter::ExactSizeIterator {}
-impl<I,F> ExactSizeIterator for std::iter::Map<I,F> where Self:std::iter::ExactSizeIterator {}
-impl<A,B> ExactSizeIterator for Chain<A,B> where Self:std::iter::ExactSizeIterator {}
 
 pub mod into;
 pub mod vec;
