@@ -1,5 +1,5 @@
 #![allow(incomplete_features)]
-#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, array_value_iter, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]
+#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]
 #![recursion_limit="6"]
 
 use std::convert::TryInto;
@@ -79,25 +79,11 @@ pub trait IntoIterator { // +impl &Box<[T]>, [T; N]
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }*/
-impl<K, V> IntoIterator for std::collections::BTreeMap<K,V> {
-	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
-	type Item = <Self::IntoIter as Iterator>::Item;
-	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
-}
 impl<T> IntoIterator for &'t [T] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-/*pub struct Iter<'t, T, const N: usize>{array: &'t [T; N], index: usize}
-impl<'t, T, const N: usize> Iter<'t, T, N> { fn new(array: &'t [T; N]) -> Self { Self{array, index: 0} } }
-impl<'t, T, const N: usize> Iterator for Iter<'t, T, N> {
-	type Item = &'t T;
-	fn next(&mut self) -> Option<Self::Item> { (self.index < N).then(||{ let next = &self.array[self.index]; self.index += 1; next }) }
-	fn size_hint(&self) -> (usize, Option<usize>) { (N-self.index, Some(N-self.index)) }
-}
-impl<T, const N: usize> std::iter::ExactSizeIterator for Iter<'_, T, N> { }*/
-//pub struct IntoIter<'t, T, const N: usize>(&'t [T; N])
 impl<T, const N: usize> IntoIterator for &'t [T; N] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -109,29 +95,38 @@ impl<T, const N: usize> IntoIterator for &'t mut [T; N] {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-impl<I, F> IntoIterator for std::iter::Filter<I, F> where Self:std::iter::IntoIterator {
-	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
-	type Item = <Self::IntoIter as Iterator>::Item;
-	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
-}
-
 impl<T> IntoIterator for &'t Box<[T]> {
 	type IntoIter = std::slice::Iter<'t, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
-
 impl<T, const N: usize> IntoIterator for [T; N] {
 	type IntoIter = std::array::IntoIter<T, N>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::array::IntoIter::new(self) }
 }
-
 impl<T> IntoIterator for Box<[T]> {
 	type IntoIter = std::vec::IntoIter<T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { self.into_vec().into_iter() }
 }
+impl<K, V> IntoIterator for std::collections::BTreeMap<K,V> {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
+impl<I, F> IntoIterator for std::iter::Filter<I, F> where Self:std::iter::IntoIterator {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
+impl<I, St, F> IntoIterator for std::iter::Scan<I, St, F> where Self:std::iter::IntoIterator {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
+
+pub mod into;
 
 //impl std::iter::IntoIterator for IntoIterator !Iterator
 impl<A, B> std::iter::IntoIterator for into::Zip<A, B> where Self:IntoIterator {
@@ -164,8 +159,23 @@ impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
 		unsafe { array_new(|array| for e in array.iter_mut() { e.write(iter.next().unwrap()); }) }
 	}
 }
-#[track_caller] pub fn array_from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usize>(iter: I) -> [T; N] where [T; N]: FromExactSizeIterator<<I as IntoIterator>::Item> {
+
+pub trait FromIterator<T> { fn from_iter<I:IntoIterator<Item=T>>(into_iter: I) -> Self; }
+impl<T, const N : usize> FromIterator<T> for [T; N] {
+	#[track_caller] fn from_iter<I:IntoIterator<Item=T>>(into_iter: I) -> Self {
+		let mut iter = into_iter.into_iter();
+		unsafe { array_new(|array| for e in array.iter_mut() { e.write(iter.next().unwrap()); }) }
+	}
+}
+
+#[track_caller]
+pub fn from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usize>(iter: I) -> [T; N] where [T; N]: FromExactSizeIterator<<I as IntoIterator>::Item> {
 	FromExactSizeIterator::from_iter(iter)
+}
+
+#[track_caller]
+pub fn from_iter_<T, I: IntoIterator<Item=T>, const N: usize>(iter: I) -> [T; N] where [T; N]: FromIterator<<I as IntoIterator>::Item> {
+	FromIterator::from_iter(iter)
 }
 
 pub trait Concat { type Output; fn concat(self) -> Self::Output; }
@@ -174,7 +184,6 @@ impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
 	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
 }
 
-pub mod into;
 pub mod vec;
 
 pub fn box_collect<T>(iter: impl Iterator<Item=T>) -> Box<[T]> { iter.collect() }
