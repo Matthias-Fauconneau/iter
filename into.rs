@@ -10,6 +10,7 @@ impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::copied(self.0.into_iter()) }
 }
+impl<I:Clone> Clone for Copied<I> { fn clone(&self) -> Self { Copied(self.0.clone()) } }
 
 pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
