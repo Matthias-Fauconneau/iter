@@ -2,6 +2,10 @@
 #![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]
 #![recursion_limit="6"]
 
+pub fn eval<T>(len: usize, f: impl Fn(usize)->T) -> Box<[T]> { (0..len).map(f).collect() }
+pub fn zip(a: impl std::iter::IntoIterator<Item=f64>, b: impl Fn(usize)->f64) -> impl Iterator<Item=(f64, f64)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
+pub fn dot(iter: impl std::iter::IntoIterator<Item=(f64, f64)>) -> f64 { iter.into_iter().map(|(a,b)| a*b).sum() }
+
 use std::convert::TryInto;
 pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
 impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { (&self[..S]).try_into().unwrap() } }
@@ -129,6 +133,11 @@ impl<I, St, F> IntoIterator for std::iter::Scan<I, St, F> where Self:std::iter::
 pub mod into;
 
 //impl std::iter::IntoIterator for IntoIterator !Iterator
+impl<T> std::iter::IntoIterator for into::Copied<T> where Self:IntoIterator {
+	type IntoIter = <Self as IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { IntoIterator::into_iter(self) }
+}
 impl<A, B> std::iter::IntoIterator for into::Zip<A, B> where Self:IntoIterator {
 	type IntoIter = <Self as IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
