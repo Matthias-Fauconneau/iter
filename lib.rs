@@ -1,8 +1,7 @@
 #![allow(incomplete_features)]
-#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]
+#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice, step_trait)]
 #![recursion_limit="6"]
 
-pub fn eval<T>(len: usize, f: impl Fn(usize)->T) -> Box<[T]> { (0..len).map(f).collect() }
 pub fn zip(a: impl std::iter::IntoIterator<Item=f64>, b: impl Fn(usize)->f64) -> impl Iterator<Item=(f64, f64)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
 pub fn dot(iter: impl std::iter::IntoIterator<Item=(f64, f64)>) -> f64 { iter.into_iter().map(|(a,b)| a*b).sum() }
 
@@ -77,7 +76,7 @@ pub trait IntoIterator { // +impl &Box<[T]>, [T; N]
 	type IntoIter: Iterator<Item = Self::Item>;
 	fn into_iter(self) -> Self::IntoIter;
 }
-// impl IntoIterator for std::iter::IntoIterator
+// impl IntoIterator for std::iter::IntoIterator !Iterator
 /*impl<I:std::iter::IntoIterator> IntoIterator for I { // Conflicts with impl IntoIterator for foreign !std::iter::IntoIterator which may implement std::iter::IntoIterator later ([])
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -115,6 +114,11 @@ impl<T> IntoIterator for Box<[T]> {
 	fn into_iter(self) -> Self::IntoIter { self.into_vec().into_iter() }
 }
 impl<K, V> IntoIterator for std::collections::BTreeMap<K,V> {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
+impl<I, F> IntoIterator for std::iter::Map<I, F> where Self:std::iter::IntoIterator {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
@@ -195,4 +199,6 @@ impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
 
 pub mod vec;
 
-pub fn box_collect<T>(iter: impl Iterator<Item=T>) -> Box<[T]> { iter.collect() }
+pub fn box_collect<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
+pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl Fn(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
+pub fn eval<T>(len: usize, f: impl Fn(usize)->T) -> Box<[T]> { map(0..len, f) }
