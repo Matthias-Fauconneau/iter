@@ -200,5 +200,5 @@ impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
 pub mod vec;
 
 pub fn box_collect<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
-pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl Fn(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
-pub fn eval<T>(len: usize, f: impl Fn(usize)->T) -> Box<[T]> { map(0..len, f) }
+pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl FnMut(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
+pub fn eval<T>(len: usize, f: impl FnMut(usize)->T) -> Box<[T]> { map(0..len, f) }
