@@ -39,5 +39,6 @@ pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::
 impl<A: Vector<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: Vector<N>, const N: usize> Dot<B, N> for A
 where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:Vector<N>, B:Vector<N> {
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
-	fn dot(self, b: B) -> Self::Output { super::into::Sum::sum(super::map!(self, b; |a,b| a*b)) }
+	//fn dot(self, b: B) -> Self::Output { super::into::Sum::sum(super::map!(self, b; |a,b| a*b)) }
+	fn dot(self, b: B) -> Self::Output { super::into::Sum::sum(self.into_iter().zip(b.into_iter()).map(|(a,b)| a*b)) }
 }
