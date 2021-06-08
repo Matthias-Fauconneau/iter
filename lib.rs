@@ -1,6 +1,4 @@
-#![allow(incomplete_features)]
-#![feature(associated_type_bounds, const_generics, const_evaluatable_checked, associated_type_defaults, in_band_lifetimes, unboxed_closures, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice, step_trait)]
-#![recursion_limit="6"]
+#![feature(const_generics, associated_type_bounds, in_band_lifetimes, unboxed_closures, const_evaluatable_checked, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice)]#![allow(incomplete_features)]
 
 pub fn zip(a: impl std::iter::IntoIterator<Item=f64>, b: impl Fn(usize)->f64) -> impl Iterator<Item=(f64, f64)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
 pub fn dot(iter: impl std::iter::IntoIterator<Item=(f64, f64)>) -> f64 { iter.into_iter().map(|(a,b)| a*b).sum() }
@@ -185,6 +183,9 @@ impl<T, const N : usize> FromIterator<T> for [T; N] {
 pub fn from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usize>(iter: I) -> [T; N] where [T; N]: FromExactSizeIterator<<I as IntoIterator>::Item> {
 	FromExactSizeIterator::from_iter(iter)
 }
+
+#[derive(Clone, Copy)] pub struct ConstRange<const N: usize>;
+impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::Range<usize>; type Item = <Self::IntoIter as Iterator>::Item; fn into_iter(self) -> Self::IntoIter { 0..N } }
 
 #[track_caller]
 pub fn from_iter_<T, I: IntoIterator<Item=T>, const N: usize>(iter: I) -> [T; N] where [T; N]: FromIterator<<I as IntoIterator>::Item> {
