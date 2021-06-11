@@ -76,10 +76,10 @@ impl<I:IntoIterator> FilterMap for I {}
 pub trait Sum<T> { fn sum(self) -> T; }
 impl<I:IntoIterator, T:std::iter::Sum<I::Item>> Sum<T> for I { fn sum(self) -> T { Iterator::sum(self.into_iter()) } }
 
-pub trait Format : IntoIterator+Sized {
+#[cfg(feature="itertools")] pub trait Format : IntoIterator+Sized {
 	fn format(self, sep: &str) -> itertools::Format<'_, Self::IntoIter> { itertools::Itertools::format(self.into_iter(), sep) }
 	fn format_with<F: FnMut(Self::Item, &mut dyn FnMut(&dyn std::fmt::Display) -> std::fmt::Result) -> std::fmt::Result>(self, sep: &str, format: F) -> itertools::FormatWith<'_, Self::IntoIter, F> {
 		itertools::Itertools::format_with(self.into_iter(), sep, format)
 	}
 }
-impl<I:IntoIterator> Format for I {}
+#[cfg(feature="itertools")] impl<I:IntoIterator> Format for I {}
