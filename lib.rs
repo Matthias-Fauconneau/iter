@@ -118,6 +118,11 @@ impl<I, F> IntoIterator for std::iter::Map<I, F> where Self:std::iter::IntoItera
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
+impl<A, B> IntoIterator for std::iter::Zip<A, B> where Self:std::iter::IntoIterator {
+	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
+}
 impl<I, F> IntoIterator for std::iter::Filter<I, F> where Self:std::iter::IntoIterator {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -157,6 +162,12 @@ unsafe fn array_new<T, const N: usize>(init: impl FnOnce(&mut [std::mem::MaybeUn
 	let array_as_initialized = std::ptr::read(&array as *const _ as *const [T; N]); //61956
 	std::mem::forget(array);
 	array_as_initialized
+}
+
+pub trait Concat { type Output; fn concat(self) -> Self::Output; }
+impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
+	type Output = [T; M*N];
+	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
 }
 
 pub trait FromExactSizeIterator<T> { fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self; }
@@ -200,18 +211,9 @@ impl<A:ConstSizeIterator<N>, B:ConstSizeIterator<N>, const N: usize> ConstSizeIt
 //pub fn eval<T, U, const N: usize>(v: impl ConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl Fn(T)->U) -> [U; N] { into::map(v, f).collect() }
 //#[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::vec::eval($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
 
-pub fn box_<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
-pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl FnMut(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
-//pub fn box_generate<T>(len: usize, f: impl FnMut(usize)->T) -> Box<[T]> { (0..len).map(f).collect() }
-
-pub trait Concat { type Output; fn concat(self) -> Self::Output; }
-impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
-	type Output = [T; M*N];
-	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
+pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> C {
+	iter.into_iter().map(|(a,b)| a*b).sum()
 }
-
-pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
-pub fn dot(iter: impl std::iter::IntoIterator<Item=(f64, f64)>) -> f64 { iter.into_iter().map(|(a,b)| a*b).sum() }
 
 pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::Output; }
 impl<A: ConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: ConstSizeIterator<N>, const N: usize> Dot<B, N> for A
@@ -219,3 +221,9 @@ where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::O
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
 	fn dot(self, b: B) -> Self::Output { into::Sum::sum(self.into_iter().zip(b.into_iter()).map(|(a,b)| a*b)) }
 }
+
+pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
+
+pub fn box_<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
+pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl FnMut(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
+//pub fn box_generate<T>(len: usize, f: impl FnMut(usize)->T) -> Box<[T]> { map(0..len, f).collect() }
