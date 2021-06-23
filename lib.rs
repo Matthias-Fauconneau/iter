@@ -194,21 +194,21 @@ pub fn from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usiz
 
 #[derive(Clone, Copy)] pub struct ConstRange<const N: usize>;
 impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::Range<usize>; type Item = <Self::IntoIter as Iterator>::Item; fn into_iter(self) -> Self::IntoIter { 0..N } }
-impl<const N: usize> ConstRange<N> { pub fn map<F:Fn<(usize,)>>(self, f: F) -> into::Map<Self, F> { into::map(self, f) } } // without IntoMap (conflicts with Iterator)
 #[track_caller] pub fn /*const_size_*/generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { ConstRange.map(f) }
 
 
-pub trait ConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
+pub trait IntoConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
 	fn collect(self) -> [<Self as IntoIterator>::Item; N] { FromExactSizeIterator::from_iter(self) }
+	fn map<F:Fn<(<Self as IntoIterator>::Item,)>>(self, f: F) -> into::Map<Self, F> { into::IntoMap::map(self, f) } // without "use IntoMap".map (conflicts with Iterator)
 }
-impl<const N: usize> ConstSizeIterator<N> for ConstRange<N> {}
-impl<T, const N: usize> ConstSizeIterator<N> for &[T; N] {}
-impl<T, const N: usize> ConstSizeIterator<N> for [T; N] {}
-impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+ConstSizeIterator<N>, const N: usize> ConstSizeIterator<N> for into::Copied<I> {}
-impl<I:ConstSizeIterator<N>, F:Fn<(<I as IntoIterator>::Item,)>, const N: usize> ConstSizeIterator<N> for into::Map<I, F> {}
-impl<A:ConstSizeIterator<N>, B:ConstSizeIterator<N>, const N: usize> ConstSizeIterator<N> for into::Zip<A, B> {}
+impl<const N: usize> IntoConstSizeIterator<N> for ConstRange<N> {}
+impl<T, const N: usize> IntoConstSizeIterator<N> for &[T; N] {}
+impl<T, const N: usize> IntoConstSizeIterator<N> for [T; N] {}
+impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Copied<I> {}
+impl<I:IntoConstSizeIterator<N>, F:Fn<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
+impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Zip<A, B> {}
 
-//pub fn eval<T, U, const N: usize>(v: impl ConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl Fn(T)->U) -> [U; N] { into::map(v, f).collect() }
+//pub fn eval<T, U, const N: usize>(v: impl IntoConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl Fn(T)->U) -> [U; N] { into::map(v, f).collect() }
 //#[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::vec::eval($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
 
 pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> C {
@@ -216,8 +216,8 @@ pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Ou
 }
 
 pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::Output; }
-impl<A: ConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: ConstSizeIterator<N>, const N: usize> Dot<B, N> for A
-where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:ConstSizeIterator<N>, B:ConstSizeIterator<N> {
+impl<A: IntoConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoConstSizeIterator<N>, const N: usize> Dot<B, N> for A
+where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N> {
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
 	fn dot(self, b: B) -> Self::Output { into::Sum::sum(self.into_iter().zip(b.into_iter()).map(|(a,b)| a*b)) }
 }
