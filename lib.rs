@@ -224,6 +224,6 @@ where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::O
 
 pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
 
-pub fn box_<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
+pub fn list<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
 pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl FnMut(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
 //pub fn box_generate<T>(len: usize, f: impl FnMut(usize)->T) -> Box<[T]> { map(0..len, f).collect() }
