@@ -210,6 +210,11 @@ impl<A: IntoExactSizeIterator+IntoIterator<Item: std::ops::Mul<<B as IntoIterato
 	fn dot(self, b: B) -> R { dot(self.zip(b)) }
 }
 
+pub trait DotN<B, R, const N: usize> { fn dot(self, other: B) -> R; }
+impl<A: IntoConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoConstSizeIterator<N>, R: std::iter::Sum<<<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output>, const N: usize> DotN<B, R, N> for A where Self:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N> {
+	fn dot(self, b: B) -> R { dot(self.zip(b)) }
+}
+
 pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
 
 pub fn list<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
