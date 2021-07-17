@@ -201,15 +201,13 @@ impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> Int
 
 pub use into::{IntoCopied as Copied, IntoChain as Chain, IntoZip as Zip, IntoMap as Map};
 
-pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> C {
-	iter.into_iter().map(|(a,b)| a*b).sum::<C>()
+pub fn dot<A: std::ops::Mul<B>, B, R: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> R {
+	iter.into_iter().map(|(a,b)| a*b).sum::<R>()
 }
 
-pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::Output; }
-impl<A: IntoConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoConstSizeIterator<N>, const N: usize> Dot<B, N> for A
-where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N> {
-	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
-	fn dot(self, b: B) -> Self::Output { dot(Iterator::zip(self.into_iter(), b.into_iter())) }
+pub trait Dot<B, R> { fn dot(self, other: B) -> R; }
+impl<A: IntoExactSizeIterator+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoExactSizeIterator, R: std::iter::Sum<<<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output>> Dot<B, R> for A {
+	fn dot(self, b: B) -> R { dot(self.zip(b)) }
 }
 
 pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
