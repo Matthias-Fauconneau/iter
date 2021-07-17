@@ -20,16 +20,12 @@ impl<I:IntoIterator> Enumerate for I {}
 
 pub struct Chain<A,B>{a: A, b: B}
 impl<A:IntoIterator, B:IntoIterator<Item=A::Item>> IntoIterator for Chain<A, B> {
-	type IntoIter = super::Chain::<A::IntoIter,B::IntoIter>;
+	type IntoIter = super::ChainIterator::<A::IntoIter,B::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { super::IntoChain::chain(self.a.into_iter(), self.b.into_iter()) }
 }
-
-pub trait IntoChain<B:Sized> : Sized { type Output; fn chain(self, b: B) -> Self::Output; }
-impl<A: IntoIterator, B: IntoIterator+Sized> IntoChain<B> for A {
-	type Output = Chain<A, B>;
-	fn chain(self, b: B) -> Self::Output { Chain{a: self, b: b} }
-}
+pub trait IntoChain : Sized { fn chain<B: IntoIterator+Sized>(self, b: B) -> Chain<Self, B> { Chain{a: self, b: b} } }
+impl<A: IntoIterator> IntoChain for A {}
 
 pub struct Zip<A,B>{pub a: A, pub b: B}
 pub trait IntoZip : Sized { fn zip<B>(self, b: B) -> Zip<Self, B> { Zip{a: self, b} } }

@@ -40,8 +40,8 @@ pub trait NthOrLast : Iterator {
 }
 impl<I:Iterator> NthOrLast for I {}
 
-pub struct Chain<A,B>{a: Option<A>, b: Option<B>} // +impl ExactSizeIterator
-impl<A:Iterator, B:Iterator<Item=A::Item>> Iterator for Chain<A, B> {
+pub struct ChainIterator<A,B>{a: Option<A>, b: Option<B>} // +impl ExactSizeIterator
+impl<A:Iterator, B:Iterator<Item=A::Item>> Iterator for ChainIterator<A, B> {
 	type Item = A::Item;
 	fn next(&mut self) -> Option<Self::Item> { if let Some(ref mut a) = self.a { a.next().or_else(||{ self.a = None; None }) } else { None }.or_else(|| self.b.as_mut().map(|b| b.next()).flatten()) }
 	fn size_hint(&self) -> (usize, Option<usize>) {
@@ -54,13 +54,9 @@ impl<A:Iterator, B:Iterator<Item=A::Item>> Iterator for Chain<A, B> {
 		}).or(self.a.as_ref().map(|a| a.size_hint())).or(self.b.as_ref().map(|b| b.size_hint())).unwrap_or((0, Some(0)))
 	}
 }
-impl<A:ExactSizeIterator, B:ExactSizeIterator<Item=A::Item>> ExactSizeIterator for Chain<A, B> {}
-
-pub trait IntoChain<B:Sized> : Sized { type Output; fn chain(self, b: B) -> Self::Output; }
-impl<A, B: Sized> IntoChain<B> for A {
-	type Output = Chain<A, B>;
-	fn chain(self, b: B) -> Self::Output { Chain{a: Some(self), b: Some(b)} }
-}
+impl<A:ExactSizeIterator, B:ExactSizeIterator<Item=A::Item>> ExactSizeIterator for ChainIterator<A, B> {}
+pub trait IntoChain : Sized { fn chain<B>(self, b: B) -> ChainIterator<Self, B> { ChainIterator{a: Some(self), b: Some(b)} } }
+impl<A> IntoChain for A {}
 
 pub trait IntoIterator { // +impl &Box<[T]>, [T; N]
 	type Item;
@@ -186,7 +182,6 @@ pub fn from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usiz
 
 #[derive(Clone, Copy)] pub struct ConstRange<const N: usize>;
 impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::Range<usize>; type Item = <Self::IntoIter as Iterator>::Item; fn into_iter(self) -> Self::IntoIter { 0..N } }
-#[track_caller] pub fn /*const_size_*/generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { ConstRange.map(f) }
 
 pub trait IntoConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
 	fn collect(self) -> [<Self as IntoIterator>::Item; N] { FromExactSizeIterator::from_iter(self) }
@@ -199,8 +194,12 @@ impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: us
 impl<I:IntoConstSizeIterator<N>, F:Fn<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
 impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Zip<A, B> {}
 
+#[track_caller] pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { IntoConstSizeIterator::map(ConstRange, f) }
+
 //pub fn eval<T, U, const N: usize>(v: impl IntoConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl Fn(T)->U) -> [U; N] { into::map(v, f).collect() }
 //#[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::vec::eval($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
+
+pub use into::{IntoCopied as Copied, IntoChain as Chain, IntoZip as Zip, IntoMap as Map};
 
 pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> C {
 	iter.into_iter().map(|(a,b)| a*b).sum::<C>()
@@ -210,7 +209,7 @@ pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::
 impl<A: IntoConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoConstSizeIterator<N>, const N: usize> Dot<B, N> for A
 where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N> {
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
-	fn dot(self, b: B) -> Self::Output { dot(self.into_iter().zip(b.into_iter())) }
+	fn dot(self, b: B) -> Self::Output { dot(Iterator::zip(self.into_iter(), b.into_iter())) }
 }
 
 pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
