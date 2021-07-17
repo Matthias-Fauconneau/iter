@@ -99,6 +99,11 @@ impl<T> IntoIterator for &'t Box<[T]> {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
+impl<T> IntoIterator for &'t Vec<T> {
+	type IntoIter = std::slice::Iter<'t, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
 impl<T> IntoIterator for Box<[T]> {
 	type IntoIter = std::vec::IntoIter<T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
