@@ -40,6 +40,11 @@ impl<A:IntoIterator, B:IntoIterator> IntoIterator for Zip<A, B> {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::zip(self.a.into_iter(), self.b.into_iter()) }
 }
+/*impl<A:crate::IntoExactSizeIterator, B:crate::IntoExactSizeIterator> IntoIterator for Zip<A, B> {
+	type IntoIter = std::iter::Zip::<A::IntoIter,B::IntoIter>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { let (a,b) = (self.a.into_iter(), self.b.into_iter()); assert!(self.0.len()==self.1.len()); Iterator::zip(a,b) }
+}*/
 impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIterator {
 	type IntoIter = std::iter::Zip::<<&'t A as IntoIterator>::IntoIter,<&'t B as IntoIterator>::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -70,6 +75,9 @@ impl<I:IntoIterator> Filter for I {}
 
 pub trait FilterMap : IntoIterator+Sized { fn filter_map<U, F:FnMut(Self::Item)->Option<U>>(self, f: F) -> std::iter::FilterMap<Self::IntoIter, F> { self.into_iter().filter_map(f) } }
 impl<I:IntoIterator> FilterMap for I {}
+
+pub trait Fold : IntoIterator+Sized { fn fold<B, F:FnMut(B, Self::Item) -> B>(self, init: B, f: F) -> B { self.into_iter().fold(init, f) } }
+impl<I:IntoIterator> Fold for I {}
 
 pub trait Sum<T> { fn sum(self) -> T; }
 impl<I:IntoIterator, T:std::iter::Sum<I::Item>> Sum<T> for I { fn sum(self) -> T { Iterator::sum(self.into_iter()) } }

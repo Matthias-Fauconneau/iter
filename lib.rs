@@ -188,7 +188,6 @@ pub fn from_iter<T, I: IntoIterator<Item=T>+IntoExactSizeIterator, const N: usiz
 impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::Range<usize>; type Item = <Self::IntoIter as Iterator>::Item; fn into_iter(self) -> Self::IntoIter { 0..N } }
 #[track_caller] pub fn /*const_size_*/generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { ConstRange.map(f) }
 
-
 pub trait IntoConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
 	fn collect(self) -> [<Self as IntoIterator>::Item; N] { FromExactSizeIterator::from_iter(self) }
 	fn map<F:Fn<(<Self as IntoIterator>::Item,)>>(self, f: F) -> into::Map<Self, F> { into::IntoMap::map(self, f) } // without "use IntoMap".map (conflicts with Iterator)
