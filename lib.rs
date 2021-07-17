@@ -89,20 +89,25 @@ impl<T, const N: usize> IntoIterator for &'t mut [T; N] {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-impl<T> IntoIterator for &'t Box<[T]> {
-	type IntoIter = std::slice::Iter<'t, T>;
-	type Item = <Self::IntoIter as Iterator>::Item;
-	fn into_iter(self) -> Self::IntoIter { self.iter() }
-}
 impl<T, const N: usize> IntoIterator for [T; N] {
 	type IntoIter = std::array::IntoIter<T, N>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::array::IntoIter::new(self) }
 }
+impl<T> IntoIterator for &'t Box<[T]> {
+	type IntoIter = std::slice::Iter<'t, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
 impl<T> IntoIterator for Box<[T]> {
 	type IntoIter = std::vec::IntoIter<T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
-	fn into_iter(self) -> Self::IntoIter { self.into_vec().into_iter() }
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self.into_vec()) }
+}
+impl<T> IntoIterator for Vec<T> {
+	type IntoIter = std::vec::IntoIter<T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
 impl<K, V> IntoIterator for std::collections::BTreeMap<K,V> {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
