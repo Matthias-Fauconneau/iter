@@ -1,10 +1,6 @@
-#![feature(const_generics, associated_type_bounds, in_band_lifetimes, unboxed_closures, const_evaluatable_checked, maybe_uninit_uninit_array, maybe_uninit_extra, maybe_uninit_slice, trait_alias)]#![allow(incomplete_features)]
-
-use std::convert::TryInto;
+#![feature(trait_alias,associated_type_bounds,in_band_lifetimes,unboxed_closures)]
 pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
-impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { (&self[..S]).try_into().unwrap() } }
-pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
-impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
+impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { self[..S].try_into().unwrap() } }
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
@@ -156,26 +152,12 @@ impl<I, F> std::iter::IntoIterator for into::Map<I, F> where Self:IntoIterator {
 pub trait IntoExactSizeIterator = IntoIterator<IntoIter:ExactSizeIterator>;
 //impl<I:IntoIterator<IntoIter:ExactSizeIterator>> IntoExactSizeIterator for I {}
 
-unsafe fn array_new<T, const N: usize>(init: impl FnOnce(&mut [std::mem::MaybeUninit<T>; N])) -> [T; N] {
-	let mut array : [std::mem::MaybeUninit<T>; N] = std::mem::MaybeUninit::uninit_array();
-	init(&mut array);
-	let array_as_initialized = std::ptr::read(&array as *const _ as *const [T; N]); //61956
-	std::mem::forget(array);
-	array_as_initialized
-}
-
-pub trait Concat { type Output; fn concat(self) -> Self::Output; }
-impl<T, const M: usize, const N: usize> Concat for [[T; N]; M] where [T; M*N]: {
-	type Output = [T; M*N];
-	fn concat(self) -> Self::Output { unsafe { array_new(|array| for (chunk, row) in array.chunks_mut(M).zip(self.into_iter()) { std::ptr::copy_nonoverlapping(row.as_ptr(), std::mem::MaybeUninit::slice_as_mut_ptr(chunk), row.len()); }) } }
-}
-
 pub trait FromExactSizeIterator<T> { fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self; }
 impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
 	#[track_caller] fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self {
 		let mut iter = into_iter.into_iter();
 		assert_eq!(iter.len(), N);
-		unsafe { array_new(|array| for e in array.iter_mut() { e.write(iter.next().unwrap()); }) }
+		[(); N].map(|()| iter.next().unwrap())
 	}
 }
 
@@ -183,7 +165,7 @@ pub trait FromIterator<T> { fn from_iter<I:IntoIterator<Item=T>>(into_iter: I) -
 impl<T, const N : usize> FromIterator<T> for [T; N] {
 	#[track_caller] fn from_iter<I:IntoIterator<Item=T>>(into_iter: I) -> Self {
 		let mut iter = into_iter.into_iter();
-		unsafe { array_new(|array| for e in array.iter_mut() { e.write(iter.next().unwrap()); }) }
+		[(); N].map(|()| iter.next().unwrap())
 	}
 }
 
@@ -212,18 +194,17 @@ impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> Int
 //#[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::vec::eval($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
 
 pub fn dot<A: std::ops::Mul<B>, B, C: std::iter::Sum<<A as std::ops::Mul<B>>::Output>>(iter: impl std::iter::IntoIterator<Item=(A,B)>) -> C {
-	iter.into_iter().map(|(a,b)| a*b).sum()
+	iter.into_iter().map(|(a,b)| a*b).sum::<C>()
 }
 
 pub trait Dot<T, const N: usize> { type Output; fn dot(self, other: T) -> Self::Output; }
 impl<A: IntoConstSizeIterator<N>+IntoIterator<Item: std::ops::Mul<<B as IntoIterator>::Item>>, B: IntoConstSizeIterator<N>, const N: usize> Dot<B, N> for A
 where <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output: std::iter::Sum, Self:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N> {
 	type Output = <<A as IntoIterator>::Item as std::ops::Mul<<B as IntoIterator>::Item>>::Output;
-	fn dot(self, b: B) -> Self::Output { into::Sum::sum(self.into_iter().zip(b.into_iter()).map(|(a,b)| a*b)) }
+	fn dot(self, b: B) -> Self::Output { dot(self.into_iter().zip(b.into_iter())) }
 }
 
 pub fn zip<A,B>(a: impl std::iter::IntoIterator<Item=A>, b: impl Fn(usize)->B) -> impl Iterator<Item=(A, B)> { a.into_iter().enumerate().map(move |(i,a)| (a,b(i))) }
 
 pub fn list<T>(iter: impl std::iter::IntoIterator<Item=T>) -> Box<[T]> { iter.into_iter().collect() }
 pub fn map<T, U>(iter: impl std::iter::IntoIterator<Item=T>, f: impl FnMut(T)->U) -> Box<[U]> { iter.into_iter().map(f).collect() }
-//pub fn box_generate<T>(len: usize, f: impl FnMut(usize)->T) -> Box<[T]> { map(0..len, f).collect() }
