@@ -1,4 +1,4 @@
 cargo-features=['edition2021']
-package={name='iter', version='0.0.0', edition='2021' }
+package={name='iter', version='0.0.0', edition='2021'}
 lib={path='lib.rs'}
 dependencies={itertools={optional=true, version='*'}}

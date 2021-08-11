@@ -1,6 +1,8 @@
 #![feature(trait_alias,associated_type_bounds,in_band_lifetimes,unboxed_closures)]
 pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
 impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { self[..S].try_into().unwrap() } }
+pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
+impl<T, const N: usize> Suffix<T> for [T; N] { fn suffix<const S: usize>(&self) -> &[T; S] { (&self[N-S..]).try_into().unwrap() } }
 
 pub trait Single: Iterator+Sized { fn single(mut self) -> Option<Self::Item> { self.next().filter(|_| self.next().is_none()) } }
 impl<I:Iterator> Single for I {}
