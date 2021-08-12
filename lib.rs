@@ -187,7 +187,7 @@ impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::
 
 pub trait IntoConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
 	fn collect(self) -> [<Self as IntoIterator>::Item; N] { FromExactSizeIterator::from_iter(self) }
-	fn map<F:Fn<(<Self as IntoIterator>::Item,)>>(self, f: F) -> into::Map<Self, F> { into::IntoMap::map(self, f) } // without "use IntoMap".map (conflicts with Iterator)
+	fn map<F:FnMut<(<Self as IntoIterator>::Item,)>>(self, f: F) -> into::Map<Self, F> { Map::map(self, f) }
 }
 impl<const N: usize> IntoConstSizeIterator<N> for ConstRange<N> {}
 impl<T, const N: usize> IntoConstSizeIterator<N> for &[T; N] {}
@@ -195,12 +195,13 @@ impl<T, const N: usize> IntoConstSizeIterator<N> for [T; N] {}
 impl<T:Clone+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Cloned<I> {}
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Copied<I> {}
 impl<I:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Enumerate<I> {}
-impl<I:IntoConstSizeIterator<N>, F:Fn<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
+impl<I:IntoConstSizeIterator<N>, F:FnMut<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
 impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Zip<A, B> {}
 
-#[track_caller] pub fn generate<T, F:Fn(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { IntoConstSizeIterator::map(ConstRange, f) }
+#[track_caller] pub fn generate<T, F:FnMut(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { Map::map(ConstRange, f) }
+#[track_caller] pub fn eval<T, F:FnMut(usize)->T, const N:usize>(f : F) -> [T; N]  { generate(f).collect() }
 
-//pub fn eval<T, U, const N: usize>(v: impl IntoConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl Fn(T)->U) -> [U; N] { into::map(v, f).collect() }
+//pub fn eval<T, U, const N: usize>(v: impl IntoConstSizeIterator<N>+IntoIterator<Item=T,IntoIter:ExactSizeIterator>, f: impl FnMut(T)->U) -> [U; N] { into::map(v, f).collect() }
 //#[macro_export] macro_rules! eval { ($($args:expr),*; |$($params:ident),*| $expr:expr) => { $crate::vec::eval($crate::zip!($($args,)*), |($($params),*)| $expr) }; }
 
 pub use into::{IntoCloned as Cloned, IntoCopied as Copied, IntoChain as Chain, IntoZip as Zip, IntoEnumerate as Enumerate, IntoMap as Map};
