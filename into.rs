@@ -4,7 +4,16 @@ pub trait Collect: IntoIterator+Sized { fn collect<B>(self) -> B where B: std::i
 // impl Collect for IntoIterator !B
 impl<I, F> Collect for Map<I, F> where Self:IntoIterator {}
 
-pub struct Copied<I>(I);
+pub struct Cloned<I>(I);
+pub trait IntoCloned: IntoIterator+Sized { fn cloned(self) -> Cloned<Self>; }
+impl<T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoCloned for I { fn cloned(self) -> Cloned<Self> { Cloned(self) } }
+impl<T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Cloned<I> {
+	type IntoIter = std::iter::Cloned::<I::IntoIter>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { Iterator::cloned(self.0.into_iter()) }
+}
+
+#[derive(Clone)] pub struct Copied<I>(I);
 pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
@@ -12,8 +21,6 @@ impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::copied(self.0.into_iter()) }
 }
-impl<I:Clone> Clone for Copied<I> { fn clone(&self) -> Self { Copied(self.0.clone()) } }
-
 
 pub struct Enumerate<I>(I);
 pub trait IntoEnumerate : IntoIterator+Sized { fn enumerate(self) -> Enumerate<Self> { Enumerate(self) } }
