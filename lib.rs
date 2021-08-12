@@ -193,6 +193,7 @@ impl<const N: usize> IntoConstSizeIterator<N> for ConstRange<N> {}
 impl<T, const N: usize> IntoConstSizeIterator<N> for &[T; N] {}
 impl<T, const N: usize> IntoConstSizeIterator<N> for [T; N] {}
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Copied<I> {}
+impl<I:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Enumerate<I> {}
 impl<I:IntoConstSizeIterator<N>, F:Fn<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
 impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Zip<A, B> {}
 

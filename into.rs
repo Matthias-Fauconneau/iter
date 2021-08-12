@@ -5,6 +5,8 @@ pub trait Collect: IntoIterator+Sized { fn collect<B>(self) -> B where B: std::i
 impl<I, F> Collect for Map<I, F> where Self:IntoIterator {}
 
 pub struct Copied<I>(I);
+pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
+impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
 impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
 	type IntoIter = std::iter::Copied::<I::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -12,11 +14,16 @@ impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
 }
 impl<I:Clone> Clone for Copied<I> { fn clone(&self) -> Self { Copied(self.0.clone()) } }
 
-pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
-impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
 
-pub trait Enumerate : IntoIterator+Sized { fn enumerate(self) -> std::iter::Enumerate<Self::IntoIter> { self.into_iter().enumerate() } }
-impl<I:IntoIterator> Enumerate for I {}
+pub struct Enumerate<I>(I);
+pub trait IntoEnumerate : IntoIterator+Sized { fn enumerate(self) -> Enumerate<Self> { Enumerate(self) } }
+impl<I:IntoIterator> IntoEnumerate for I {}
+impl<I:IntoIterator> IntoIterator for Enumerate<I> {
+	type IntoIter = std::iter::Enumerate::<I::IntoIter>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+	fn into_iter(self) -> Self::IntoIter { Iterator::enumerate(self.0.into_iter()) }
+}
+
 
 pub struct Chain<A,B>{a: A, b: B}
 impl<A:IntoIterator, B:IntoIterator<Item=A::Item>> IntoIterator for Chain<A, B> {
@@ -54,7 +61,7 @@ impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIt
 	( @closure $p:pat => ( $($tup:tt)* ) , $_iter:expr $( , $tail:expr )* ) => { $crate::zip!(@closure ($p, b) => ( $($tup)*, b ) $( , $tail )*) };
 }
 
-#[derive(Clone, Copy)] pub struct Map<I,F>{iter: I, f: F}
+pub struct Map<I,F>{iter: I, f: F}
 pub trait IntoMap : IntoIterator+Sized { fn map<F:Fn<(Self::Item,)>>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
 impl<I:IntoIterator> IntoMap for I {}
 impl<I:IntoIterator, F: Fn<(I::Item,)>> IntoIterator for Map<I, F> {
