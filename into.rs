@@ -61,7 +61,7 @@ impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIt
 	( @closure $p:pat => ( $($tup:tt)* ) , $_iter:expr $( , $tail:expr )* ) => { $crate::zip!(@closure ($p, b) => ( $($tup)*, b ) $( , $tail )*) };
 }
 
-pub struct Map<I,F>{iter: I, f: F}
+#[derive(Clone)] pub struct Map<I,F>{iter: I, f: F}
 pub trait IntoMap : IntoIterator+Sized { fn map<F:Fn<(Self::Item,)>>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
 impl<I:IntoIterator> IntoMap for I {}
 impl<I:IntoIterator, F: Fn<(I::Item,)>> IntoIterator for Map<I, F> {
