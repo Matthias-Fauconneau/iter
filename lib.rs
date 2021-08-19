@@ -1,4 +1,4 @@
-#![feature(trait_alias,associated_type_bounds,in_band_lifetimes,unboxed_closures)]
+#![feature(trait_alias,associated_type_bounds)]
 pub trait Prefix<T> { fn prefix<const S: usize>(&self) -> &[T; S]; }
 impl<T, const N: usize> Prefix<T> for [T; N] { fn prefix<const S: usize>(&self) -> &[T; S] { self[..S].try_into().unwrap() } }
 pub trait Suffix<T> { fn suffix<const S: usize>(&self) -> &[T; S]; }
@@ -71,33 +71,33 @@ pub trait IntoIterator { // +impl &Box<[T]>, [T; N]
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }*/
-impl<T> IntoIterator for &'t [T] {
+impl<'t, T> IntoIterator for &'t [T] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-impl<T, const N: usize> IntoIterator for &'t [T; N] {
+impl<'t, T, const N: usize> IntoIterator for &'t [T; N] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	//fn into_iter(self) -> Self::IntoIter { IntoIter(self) }
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-impl<T, const N: usize> IntoIterator for &'t mut [T; N] {
+impl<'t, T, const N: usize> IntoIterator for &'t mut [T; N] {
 	type IntoIter = <Self as std::iter::IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::iter::IntoIterator::into_iter(self) }
 }
-impl<T, const N: usize> IntoIterator for [T; N] {
+impl<'t, T, const N: usize> IntoIterator for [T; N] {
 	type IntoIter = std::array::IntoIter<T, N>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { std::array::IntoIter::new(self) }
 }
-impl<T> IntoIterator for &'t Box<[T]> {
+impl<'t, T> IntoIterator for &'t Box<[T]> {
 	type IntoIter = std::slice::Iter<'t, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
-impl<T> IntoIterator for &'t Vec<T> {
+impl<'t, T> IntoIterator for &'t Vec<T> {
 	type IntoIter = std::slice::Iter<'t, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { self.iter() }
@@ -158,7 +158,6 @@ impl<I, F> std::iter::IntoIterator for into::Map<I, F> where Self:IntoIterator {
 }
 
 pub trait IntoExactSizeIterator = IntoIterator<IntoIter:ExactSizeIterator>;
-//impl<I:IntoIterator<IntoIter:ExactSizeIterator>> IntoExactSizeIterator for I {}
 
 pub trait FromExactSizeIterator<T> { fn from_iter<I:IntoIterator<Item=T>+IntoExactSizeIterator>(into_iter: I) -> Self; }
 impl<T, const N : usize> FromExactSizeIterator<T> for [T; N] {
@@ -187,15 +186,15 @@ impl<const N: usize> IntoIterator for ConstRange<N> { type IntoIter = std::ops::
 
 pub trait IntoConstSizeIterator<const N: usize> : IntoExactSizeIterator+Sized {
 	fn collect(self) -> [<Self as IntoIterator>::Item; N] { FromExactSizeIterator::from_iter(self) }
-	fn map<F:FnMut<(<Self as IntoIterator>::Item,)>>(self, f: F) -> into::Map<Self, F> { Map::map(self, f) }
+	fn map<B, F:FnMut(<Self as IntoIterator>::Item)->B>(self, f: F) -> into::Map<Self, F> { Map::map(self, f) }
 }
 impl<const N: usize> IntoConstSizeIterator<N> for ConstRange<N> {}
 impl<T, const N: usize> IntoConstSizeIterator<N> for &[T; N] {}
 impl<T, const N: usize> IntoConstSizeIterator<N> for [T; N] {}
-impl<T:Clone+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Cloned<I> {}
-impl<T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Copied<I> {}
+impl<'t, T:Clone+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Cloned<I> {}
+impl<'t, T:Copy+'t, I:IntoIterator<Item=&'t T>+IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Copied<I> {}
 impl<I:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Enumerate<I> {}
-impl<I:IntoConstSizeIterator<N>, F:FnMut<(<I as IntoIterator>::Item,)>, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
+impl<I:IntoConstSizeIterator<N>, B, F:FnMut(<I as IntoIterator>::Item)->B, const N: usize> IntoConstSizeIterator<N> for into::Map<I, F> {}
 impl<A:IntoConstSizeIterator<N>, B:IntoConstSizeIterator<N>, const N: usize> IntoConstSizeIterator<N> for into::Zip<A, B> {}
 
 #[track_caller] pub fn generate<T, F:FnMut(usize)->T, const N:usize>(f : F) -> into::Map<ConstRange<N>, F> { Map::map(ConstRange, f) }

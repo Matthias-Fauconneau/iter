@@ -6,8 +6,8 @@ impl<I, F> Collect for Map<I, F> where Self:IntoIterator {}
 
 pub struct Cloned<I>(I);
 pub trait IntoCloned: IntoIterator+Sized { fn cloned(self) -> Cloned<Self>; }
-impl<T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoCloned for I { fn cloned(self) -> Cloned<Self> { Cloned(self) } }
-impl<T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Cloned<I> {
+impl<'t, T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoCloned for I { fn cloned(self) -> Cloned<Self> { Cloned(self) } }
+impl<'t, T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Cloned<I> {
 	type IntoIter = std::iter::Cloned::<I::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::cloned(self.0.into_iter()) }
@@ -15,8 +15,8 @@ impl<T:Clone+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Cloned<I> {
 
 #[derive(Clone)] pub struct Copied<I>(I);
 pub trait IntoCopied : IntoIterator+Sized { fn copied(self) -> Copied<Self>; }
-impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
-impl<T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
+impl<'t, T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoCopied for I { fn copied(self) -> Copied<Self> { Copied(self) } }
+impl<'t, T:Copy+'t, I:IntoIterator<Item=&'t T>> IntoIterator for Copied<I> {
 	type IntoIter = std::iter::Copied::<I::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::copied(self.0.into_iter()) }
@@ -55,7 +55,7 @@ impl<A:IntoIterator, B:IntoIterator> IntoIterator for Zip<A, B> {
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { let (a,b) = (self.a.into_iter(), self.b.into_iter()); assert!(self.0.len()==self.1.len()); Iterator::zip(a,b) }
 }*/
-impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIterator {
+impl<'t, A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIterator {
 	type IntoIter = std::iter::Zip::<<&'t A as IntoIterator>::IntoIter,<&'t B as IntoIterator>::IntoIter>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::zip(self.a.into_iter(), self.b.into_iter()) }
@@ -69,9 +69,9 @@ impl<A, B> IntoIterator for &'t Zip<A, B> where &'t A:IntoIterator, &'t B:IntoIt
 }
 
 #[derive(Clone)] pub struct Map<I,F>{iter: I, f: F}
-pub trait IntoMap : IntoIterator+Sized { fn map<F:FnMut<(Self::Item,)>>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
+pub trait IntoMap : IntoIterator+Sized { fn map<B, F:FnMut(Self::Item)->B>(self, f: F) -> Map<Self, F> { Map{iter: self, f} } }
 impl<I:IntoIterator> IntoMap for I {}
-impl<I:IntoIterator, F: FnMut<(I::Item,)>> IntoIterator for Map<I, F> {
+impl<I:IntoIterator, B, F: FnMut(I::Item)->B> IntoIterator for Map<I, F> {
 	type IntoIter = std::iter::Map::<I::IntoIter, F>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 	fn into_iter(self) -> Self::IntoIter { Iterator::map(self.iter.into_iter(), self.f) }
